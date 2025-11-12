@@ -10,3 +10,6 @@ devenv.local.nix
 
 # Ingore terraform dir
 .terraform
+
+# Ignore .auto.tfvars files
+*.auto.tfvars

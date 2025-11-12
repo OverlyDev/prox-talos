@@ -1,0 +1,74 @@
+# Proxmox Configuration
+proxmox_endpoint       = "https://proxmox.example.com:8006"
+proxmox_username       = "root@pam"
+proxmox_password       = "your-password-here"
+proxmox_insecure       = true           # Set to false if using valid TLS certificates
+proxmox_node_name      = "pve"
+proxmox_vm_datastore      = "local-lvm"    # Datastore for VM disks
+proxmox_iso_datastore  = "local"        # Datastore for ISO/image downloads
+proxmox_network_bridge = "vmbr0"
+# proxmox_vlan_tag       = 100          # Optional: Set a global VLAN tag for all VMs (uncomment to use)
+
+# Network Configuration
+network_gateway = "10.0.20.1"
+starting_ip     = "10.0.20.10"  # First node gets this IP, then increments sequentially
+starting_vm_id  = 100           # First node gets this VM ID, then increments sequentially
+
+# Cluster Configuration
+cluster_name     = "homelab"
+cluster_endpoint = "https://10.0.20.10:6443" # Should match the first control plane node IP
+talos_version    = "v1.8.3"
+
+# Talos Image Extensions
+# Add system extensions to include in the Talos image
+# See available extensions at: https://factory.talos.dev/
+talos_image_extensions = [
+  "siderolabs/qemu-guest-agent",
+  # "siderolabs/iscsi-tools",
+  # "siderolabs/util-linux-tools",
+  # "siderolabs/intel-ucode",
+  # "siderolabs/amd-ucode",
+]
+
+# Node Pool Configuration
+# Define your cluster topology here!
+# IPs and VM IDs are assigned sequentially starting from starting_ip and starting_vm_id
+#
+# Example with defaults (starting_ip="10.0.20.10", starting_vm_id=100):
+#   - controlplane (3 nodes): IPs .10-.12, VM IDs 100-102
+#   - workers_amd64 (1 node): IP .13, VM ID 103
+#   - workers_arm64 (if enabled): IPs .14+, VM IDs 104+
+#
+# Optional per-pool VLAN tag override example:
+#   vlan_tag = 200  # Add this to any node pool to override global VLAN setting
+node_pools = {
+  # Control plane nodes (always needed)
+  controlplane = {
+    node_type    = "controlplane"
+    architecture = "amd64"
+    count        = 3
+    cpu_cores    = 2
+    memory_mb    = 2048
+    disk_size_gb = 10
+  }
+
+  # amd64 worker nodes
+  workers_amd64 = {
+    node_type    = "worker"
+    architecture = "amd64"
+    count        = 1
+    cpu_cores    = 1
+    memory_mb    = 1024
+    disk_size_gb = 10
+  }
+
+  # arm64 worker nodes (optional)
+  workers_arm64 = {
+    node_type    = "worker"
+    architecture = "arm64"
+    count        = 0        # Set to desired number or 0 to disable
+    cpu_cores    = 1
+    memory_mb    = 1024
+    disk_size_gb = 10
+  }
+}

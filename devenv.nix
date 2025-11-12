@@ -1,12 +1,18 @@
 { pkgs, lib, config, inputs, ... }:
 
 {
-  packages = [ pkgs.git ];
+  packages = [
+    pkgs.git
+    pkgs.talosctl
+    pkgs.kubectl
+  ];
 
   languages.terraform.enable = true;
 
   env = {
     PATH = "$DEVENV_PROFILE/bin:$PATH";
+    TALOSCONFIG = "${config.devenv.root}/talosconfig";
+    KUBECONFIG = "${config.devenv.root}/kubeconfig";
   };
 
   processes.code.exec = "code .";
@@ -23,6 +29,8 @@
     echo "Running tests"
     checkPkgVersion "${pkgs.git.meta.mainProgram}" "${pkgs.git.version}"
     checkPkgVersion "${pkgs.terraform.meta.mainProgram}" "${pkgs.terraform.version}"
+    checkPkgVersion "${pkgs.talosctl.meta.mainProgram}" "${pkgs.talosctl.version}"
+    checkPkgVersion "${pkgs.kubectl.meta.mainProgram}" "${pkgs.kubectl.version}"
   '';
 
   enterShell = ''

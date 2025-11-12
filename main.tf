@@ -39,6 +39,9 @@ module "talos_cluster" {
   cluster_name     = var.cluster_name
   cluster_endpoint = var.cluster_endpoint
   talos_version    = var.talos_version
+
+  control_plane_endpoints = [for node in local.nodes : split("/", node.ip_address)[0] if node.node_type == "controlplane"]
+  all_node_addresses      = [for node in local.nodes : split("/", node.ip_address)[0]]
 }
 
 # Generate Talos images for each architecture in use
@@ -51,26 +54,38 @@ module "talos_image" {
   extensions    = var.talos_image_extensions
 }
 
-# Create all VMs
+# Cache Talos images on Proxmox host (download once, reuse for all VMs)
+module "talos_image_cache" {
+  source   = "./modules/talos-image-cache"
+  for_each = toset(local.architectures)
+
+  talos_image_url  = module.talos_image[each.key].image_url
+  architecture     = each.key
+  proxmox_ssh_host = var.proxmox_host
+}
+
+# Create all VMs (but don't start them yet)
 module "talos_vm" {
   source   = "./modules/talos-vm"
   for_each = { for node in local.nodes : node.key => node }
 
-  vm_id        = each.value.vm_id
-  node_name    = var.proxmox_node_name
-  node_type    = each.value.node_type
-  architecture = each.value.architecture
-  cluster_name = var.cluster_name
+  vm_id            = each.value.vm_id
+  node_name        = var.proxmox_node_name
+  proxmox_ssh_host = var.proxmox_host
+  node_type        = each.value.node_type
+  architecture     = each.value.architecture
+  cluster_name     = var.cluster_name
 
   talos_client_config  = module.talos_cluster.client_configuration
   talos_machine_config = each.value.node_type == "controlplane" ? module.talos_cluster.machine_configs.controlplane : module.talos_cluster.machine_configs.worker
   talos_image_url      = module.talos_image[each.value.architecture].image_url
+  talos_image_cache    = module.talos_image_cache[each.value.architecture].cache_path
 
   cpu_cores    = each.value.cpu_cores
   memory_mb    = each.value.memory_mb
   disk_size_gb = each.value.disk_size_gb
 
-  disk_datastore = var.proxmox_vm_datastore
+  disk_datastore = var.proxmox_datastore
   iso_datastore  = var.proxmox_iso_datastore
   network_bridge = var.proxmox_network_bridge
   vlan_tag       = each.value.vlan_tag
@@ -78,8 +93,86 @@ module "talos_vm" {
   ip_address = each.value.ip_address
   gateway    = var.network_gateway
 
+  # Auto-start VMs
+  auto_start = true
+
   # Ensure control plane nodes are created first
   depends_on = [
-    module.talos_cluster
+    module.talos_cluster,
+    module.talos_image_cache
   ]
+}
+
+# Apply Talos machine configuration to DHCP IPs
+# Talos will initially boot with DHCP, we apply config with static IP settings
+resource "talos_machine_configuration_apply" "nodes" {
+  for_each = { for node in local.nodes : node.key => node }
+
+  client_configuration        = module.talos_cluster.client_configuration
+  machine_configuration_input = each.value.node_type == "controlplane" ? module.talos_cluster.machine_configs.controlplane : module.talos_cluster.machine_configs.worker
+
+  # Use the DHCP IP reported by guest agent
+  node     = module.talos_vm[each.key].ipv4_addresses
+  endpoint = module.talos_vm[each.key].ipv4_addresses
+
+  config_patches = [
+    yamlencode({
+      machine = {
+        network = {
+          hostname = module.talos_vm[each.key].name
+          interfaces = [
+            {
+              interface = "eth0"
+              dhcp      = false
+              addresses = [each.value.ip_address]
+              routes = [
+                {
+                  network = "0.0.0.0/0"
+                  gateway = var.network_gateway
+                }
+              ]
+            }
+          ]
+          nameservers = var.nameservers
+        }
+      }
+    })
+  ]
+
+  depends_on = [module.talos_vm]
+}
+
+# Bootstrap the cluster (run once on first control plane node)
+resource "talos_machine_bootstrap" "this" {
+  client_configuration = module.talos_cluster.client_configuration
+  node                 = split("/", local.nodes[0].ip_address)[0]
+  endpoint             = split("/", local.nodes[0].ip_address)[0]
+
+  lifecycle {
+    ignore_changes = all
+  }
+
+  depends_on = [talos_machine_configuration_apply.nodes]
+}
+
+# Generate kubeconfig after bootstrap
+resource "talos_cluster_kubeconfig" "this" {
+  client_configuration = module.talos_cluster.client_configuration
+  node                 = split("/", local.nodes[0].ip_address)[0]
+
+  depends_on = [talos_machine_bootstrap.this]
+}
+
+# Write talosconfig to file
+resource "local_file" "talosconfig" {
+  content         = module.talos_cluster.talosconfig
+  filename        = "${path.module}/talosconfig"
+  file_permission = "0600"
+}
+
+# Write kubeconfig to file
+resource "local_file" "kubeconfig" {
+  content         = talos_cluster_kubeconfig.this.kubeconfig_raw
+  filename        = "${path.module}/kubeconfig"
+  file_permission = "0600"
 }

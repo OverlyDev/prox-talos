@@ -14,6 +14,18 @@ variable "cluster_endpoint" {
   type        = string
 }
 
+variable "control_plane_endpoints" {
+  description = "List of control plane node endpoints"
+  type        = list(string)
+  default     = []
+}
+
+variable "all_node_addresses" {
+  description = "List of all node IP addresses (control plane + workers)"
+  type        = list(string)
+  default     = []
+}
+
 variable "controlplane_count" {
   description = "Number of control plane nodes"
   type        = number

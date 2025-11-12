@@ -1,6 +1,18 @@
-variable "proxmox_endpoint" {
-  description = "The Proxmox VE API endpoint (protocol://host:port)"
+variable "proxmox_host" {
+  description = "The Proxmox host (hostname or IP address)"
   type        = string
+}
+
+variable "proxmox_port" {
+  description = "The Proxmox API port"
+  type        = number
+  default     = 8006
+}
+
+variable "proxmox_tls" {
+  description = "Whether to use HTTPS (true) or HTTP (false)"
+  type        = bool
+  default     = true
 }
 
 variable "proxmox_insecure" {
@@ -20,6 +32,10 @@ variable "proxmox_password" {
   sensitive   = true
 }
 
+locals {
+  proxmox_endpoint = "${var.proxmox_tls ? "https" : "http"}://${var.proxmox_host}:${var.proxmox_port}"
+}
+
 variable "talos_image_extensions" {
   description = "List of Talos system extensions to include in the image"
   type        = list(string)
@@ -32,7 +48,7 @@ variable "proxmox_node_name" {
   default     = "pve"
 }
 
-variable "proxmox_vm_datastore" {
+variable "proxmox_datastore" {
   description = "The Proxmox datastore to use for VM disks"
   type        = string
   default     = "local-lvm"
@@ -59,6 +75,12 @@ variable "proxmox_vlan_tag" {
 variable "network_gateway" {
   description = "The network gateway for VMs"
   type        = string
+}
+
+variable "nameservers" {
+  description = "DNS nameservers for the Talos nodes"
+  type        = list(string)
+  default     = ["1.1.1.1", "1.0.0.1"]
 }
 
 variable "cluster_name" {

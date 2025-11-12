@@ -18,6 +18,11 @@ output "ip_address" {
   value       = split("/", var.ip_address)[0]
 }
 
+output "ipv4_addresses" {
+  description = "The IPv4 addresses reported by QEMU guest agent"
+  value       = data.external.guest_ip.result.ip
+}
+
 output "node_type" {
   description = "The type of Talos node (controlplane or worker)"
   value       = var.node_type
@@ -26,6 +31,11 @@ output "node_type" {
 output "architecture" {
   description = "The CPU architecture (amd64 or arm64)"
   value       = var.architecture
+}
+
+output "mac_address" {
+  description = "The MAC address of the VM's network interface"
+  value       = proxmox_virtual_environment_vm.this.mac_addresses[0]
 }
 
 output "tags" {

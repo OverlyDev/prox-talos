@@ -50,5 +50,6 @@ data "talos_machine_configuration" "worker" {
 data "talos_client_configuration" "this" {
   cluster_name         = var.cluster_name
   client_configuration = talos_machine_secrets.cluster.client_configuration
-  endpoints            = []
+  endpoints            = var.control_plane_endpoints
+  nodes                = var.all_node_addresses
 }

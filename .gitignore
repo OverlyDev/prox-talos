@@ -10,6 +10,12 @@ devenv.local.nix
 
 # Ingore terraform dir
 .terraform
+*.tfstate
+*.tfstate.*
 
 # Ignore .auto.tfvars files
 *.auto.tfvars
+
+# Ignore generated configs
+talosconfig
+kubeconfig

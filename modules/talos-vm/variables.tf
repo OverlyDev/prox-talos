@@ -14,6 +14,11 @@ variable "node_name" {
   type        = string
 }
 
+variable "proxmox_ssh_host" {
+  description = "SSH hostname or IP address of the Proxmox node"
+  type        = string
+}
+
 variable "node_type" {
   description = "Type of Talos node (controlplane or worker)"
   type        = string
@@ -55,6 +60,11 @@ variable "talos_machine_config" {
 
 variable "talos_image_url" {
   description = "URL to the Talos image"
+  type        = string
+}
+
+variable "talos_image_cache" {
+  description = "Path to the cached Talos image on the Proxmox host"
   type        = string
 }
 
@@ -130,6 +140,12 @@ variable "tags" {
 
 variable "on_boot" {
   description = "Start VM on Proxmox node boot"
+  type        = bool
+  default     = true
+}
+
+variable "auto_start" {
+  description = "Whether to automatically start the VM after creation"
   type        = bool
   default     = true
 }

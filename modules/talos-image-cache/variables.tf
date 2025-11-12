@@ -3,6 +3,11 @@ variable "talos_image_url" {
   type        = string
 }
 
+variable "talos_version" {
+  description = "Talos version for cache naming"
+  type        = string
+}
+
 variable "architecture" {
   description = "CPU architecture (amd64 or arm64)"
   type        = string

@@ -60,6 +60,7 @@ module "talos_image_cache" {
   for_each = toset(local.architectures)
 
   talos_image_url  = module.talos_image[each.key].image_url
+  talos_version    = var.talos_version
   architecture     = each.key
   proxmox_ssh_host = var.proxmox_host
 }
@@ -175,4 +176,90 @@ resource "local_file" "kubeconfig" {
   content         = talos_cluster_kubeconfig.this.kubeconfig_raw
   filename        = "${path.module}/kubeconfig"
   file_permission = "0600"
+}
+
+# Wait for Kubernetes API to be ready
+resource "terraform_data" "wait_for_k8s_api" {
+  triggers_replace = {
+    bootstrap_id = talos_machine_bootstrap.this.id
+  }
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      #!/bin/bash
+      echo "[K8s] Waiting for Kubernetes API to be ready..."
+
+      export KUBECONFIG=${local_file.kubeconfig.filename}
+
+      for i in {1..60}; do
+        if kubectl get nodes &>/dev/null; then
+          echo "[K8s] Kubernetes API is ready!"
+          exit 0
+        fi
+        echo "[K8s] Attempt $i/60: API not ready yet, waiting 5 seconds..."
+        sleep 5
+      done
+
+      echo "[K8s] ERROR: Kubernetes API did not become ready after 5 minutes"
+      exit 1
+    EOT
+  }
+
+  depends_on = [
+    talos_machine_bootstrap.this,
+    local_file.kubeconfig
+  ]
+}
+
+# Install Cilium CNI
+resource "helm_release" "cilium" {
+  name       = "cilium"
+  repository = "https://helm.cilium.io/"
+  chart      = "cilium"
+  version    = "1.18.3"
+  namespace  = "kube-system"
+
+  set {
+    name  = "ipam.mode"
+    value = "kubernetes"
+  }
+
+  set {
+    name  = "kubeProxyReplacement"
+    value = "true"
+  }
+
+  set {
+    name  = "securityContext.capabilities.ciliumAgent"
+    value = "{CHOWN,KILL,NET_ADMIN,NET_RAW,IPC_LOCK,SYS_ADMIN,SYS_RESOURCE,DAC_OVERRIDE,FOWNER,SETGID,SETUID}"
+  }
+
+  set {
+    name  = "securityContext.capabilities.cleanCiliumState"
+    value = "{NET_ADMIN,SYS_ADMIN,SYS_RESOURCE}"
+  }
+
+  set {
+    name  = "cgroup.autoMount.enabled"
+    value = "false"
+  }
+
+  set {
+    name  = "cgroup.hostRoot"
+    value = "/sys/fs/cgroup"
+  }
+
+  set {
+    name  = "k8sServiceHost"
+    value = replace(replace(var.cluster_endpoint, "https://", ""), ":6443", "")
+  }
+
+  set {
+    name  = "k8sServicePort"
+    value = "6443"
+  }
+
+  depends_on = [
+    terraform_data.wait_for_k8s_api
+  ]
 }

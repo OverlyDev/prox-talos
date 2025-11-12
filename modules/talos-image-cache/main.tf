@@ -1,6 +1,6 @@
 locals {
-  # Create a unique cache filename based on the image URL hash
-  cache_filename = "talos-${var.architecture}-${substr(sha256(var.talos_image_url), 0, 16)}.raw"
+  # Create a unique cache filename based on version and image URL hash
+  cache_filename = "talos-${var.talos_version}-${var.architecture}-${substr(sha256(var.talos_image_url), 0, 16)}.raw"
   cache_path     = "/var/lib/vz/template/cache/${local.cache_filename}"
 }
 

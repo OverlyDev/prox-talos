@@ -6,7 +6,7 @@ variable "cluster_name" {
 variable "talos_version" {
   description = "Talos Linux version to use"
   type        = string
-  default     = "v1.8.3"
+  default     = "v1.11.5"
 }
 
 variable "cluster_endpoint" {

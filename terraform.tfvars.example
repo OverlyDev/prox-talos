@@ -1,11 +1,13 @@
 # Proxmox Configuration
-proxmox_endpoint       = "https://proxmox.example.com:8006"
+proxmox_host           = "proxmox.example.com"  # Hostname or IP address of Proxmox host
+proxmox_port           = 8006                   # API port (default: 8006)
+proxmox_tls            = true                   # Use HTTPS (true) or HTTP (false)
 proxmox_username       = "root@pam"
 proxmox_password       = "your-password-here"
-proxmox_insecure       = true           # Set to false if using valid TLS certificates
+proxmox_insecure       = true                   # Set to false if using valid TLS certificates
 proxmox_node_name      = "pve"
-proxmox_vm_datastore      = "local-lvm"    # Datastore for VM disks
-proxmox_iso_datastore  = "local"        # Datastore for ISO/image downloads
+proxmox_datastore      = "local-lvm"            # Datastore for VM disks
+proxmox_iso_datastore  = "local"                # Datastore for ISO/image downloads
 proxmox_network_bridge = "vmbr0"
 # proxmox_vlan_tag       = 100          # Optional: Set a global VLAN tag for all VMs (uncomment to use)
 

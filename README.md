@@ -36,6 +36,11 @@ This repository includes a `devenv.nix` file for automatic environment setup wit
 exec devenv shell
 ```
 
+Note: If using VSCode and having trouble with the Terraform extension:
+- Close VSCode
+- Enter the devenv shell
+- Launch VSCode from that shell via `code .`
+
 ## Quick Start
 
 ### 1. Clone and Configure

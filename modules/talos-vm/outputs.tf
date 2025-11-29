@@ -1,3 +1,6 @@
+# Talos VM Module Outputs
+# Provides VM details including IDs, network information, and configuration.
+
 output "vm_id" {
   description = "The ID of the VM"
   value       = proxmox_virtual_environment_vm.this.vm_id
@@ -18,11 +21,6 @@ output "ip_address" {
   value       = split("/", var.ip_address)[0]
 }
 
-output "ipv4_addresses" {
-  description = "The IPv4 addresses reported by QEMU guest agent"
-  value       = data.external.guest_ip.result.ip
-}
-
 output "node_type" {
   description = "The type of Talos node (controlplane or worker)"
   value       = var.node_type
@@ -36,6 +34,11 @@ output "architecture" {
 output "mac_address" {
   description = "The MAC address of the VM's network interface"
   value       = proxmox_virtual_environment_vm.this.mac_addresses[0]
+}
+
+output "ipv4_addresses" {
+  description = "The static IPv4 address"
+  value       = split("/", var.ip_address)[0]
 }
 
 output "tags" {

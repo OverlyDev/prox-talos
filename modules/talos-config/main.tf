@@ -1,3 +1,7 @@
+# Talos Config Module
+# Generates Talos machine secrets, configurations, and client configuration.
+# Provides base configurations for control plane and worker nodes.
+
 # Generate machine secrets
 resource "talos_machine_secrets" "cluster" {
   talos_version = var.talos_version

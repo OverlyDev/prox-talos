@@ -1,3 +1,6 @@
+# Talos Image Module Variables
+# Configuration for generating and downloading custom Talos ISO images.
+
 variable "talos_version" {
   description = "Talos Linux version"
   type        = string
@@ -30,4 +33,15 @@ variable "kernel_args" {
   description = "Extra kernel arguments"
   type        = list(string)
   default     = []
+}
+
+variable "node_name" {
+  description = "Proxmox node name where the ISO should be downloaded"
+  type        = string
+}
+
+variable "iso_datastore" {
+  description = "Proxmox datastore name for ISO storage"
+  type        = string
+  default     = "local"
 }

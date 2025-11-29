@@ -1,5 +1,5 @@
 variable "proxmox_host" {
-  description = "The Proxmox host (hostname or IP address)"
+  description = "Proxmox host hostname or IP address"
   type        = string
 }
 
@@ -48,14 +48,14 @@ variable "proxmox_node_name" {
   default     = "pve"
 }
 
-variable "proxmox_datastore" {
-  description = "The Proxmox datastore to use for VM disks"
+variable "proxmox_disk_datastore" {
+  description = "Proxmox datastore for VM disks (typically 'local-lvm')"
   type        = string
   default     = "local-lvm"
 }
 
 variable "proxmox_iso_datastore" {
-  description = "The Proxmox datastore to use for ISO/image downloads"
+  description = "Proxmox datastore for ISO storage (typically 'local')"
   type        = string
   default     = "local"
 }
@@ -97,7 +97,7 @@ variable "cluster_endpoint" {
 variable "talos_version" {
   description = "Talos Linux version"
   type        = string
-  default     = "v1.8.3"
+  default     = "v1.11.5"
 }
 
 variable "node_pools" {

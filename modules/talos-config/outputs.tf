@@ -1,3 +1,6 @@
+# Talos Config Module Outputs
+# Provides machine secrets, configurations, and client configuration for cluster management.
+
 output "machine_secrets" {
   description = "Machine secrets for the Talos cluster"
   value       = talos_machine_secrets.cluster.machine_secrets

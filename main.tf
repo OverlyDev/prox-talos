@@ -44,7 +44,7 @@ module "talos_cluster" {
   all_node_addresses      = [for node in local.nodes : split("/", node.ip_address)[0]]
 }
 
-# Generate Talos images for each architecture in use
+# Generate Talos images and download ISOs for each architecture in use
 module "talos_image" {
   source   = "./modules/talos-image"
   for_each = toset(local.architectures)
@@ -52,17 +52,8 @@ module "talos_image" {
   talos_version = module.talos_cluster.talos_version
   architecture  = each.key
   extensions    = var.talos_image_extensions
-}
-
-# Cache Talos images on Proxmox host (download once, reuse for all VMs)
-module "talos_image_cache" {
-  source   = "./modules/talos-image-cache"
-  for_each = toset(local.architectures)
-
-  talos_image_url  = module.talos_image[each.key].image_url
-  talos_version    = var.talos_version
-  architecture     = each.key
-  proxmox_ssh_host = var.proxmox_host
+  node_name     = var.proxmox_node_name
+  iso_datastore = var.proxmox_iso_datastore
 }
 
 # Create all VMs (but don't start them yet)
@@ -70,26 +61,24 @@ module "talos_vm" {
   source   = "./modules/talos-vm"
   for_each = { for node in local.nodes : node.key => node }
 
-  vm_id            = each.value.vm_id
-  node_name        = var.proxmox_node_name
-  proxmox_ssh_host = var.proxmox_host
-  node_type        = each.value.node_type
-  architecture     = each.value.architecture
-  cluster_name     = var.cluster_name
+  vm_id        = each.value.vm_id
+  node_name    = var.proxmox_node_name
+  node_type    = each.value.node_type
+  architecture = each.value.architecture
+  cluster_name = var.cluster_name
 
   talos_client_config  = module.talos_cluster.client_configuration
   talos_machine_config = each.value.node_type == "controlplane" ? module.talos_cluster.machine_configs.controlplane : module.talos_cluster.machine_configs.worker
-  talos_image_url      = module.talos_image[each.value.architecture].image_url
-  talos_image_cache    = module.talos_image_cache[each.value.architecture].cache_path
+  talos_iso_id         = module.talos_image[each.value.architecture].iso_id
 
   cpu_cores    = each.value.cpu_cores
   memory_mb    = each.value.memory_mb
   disk_size_gb = each.value.disk_size_gb
 
-  disk_datastore = var.proxmox_datastore
-  iso_datastore  = var.proxmox_iso_datastore
-  network_bridge = var.proxmox_network_bridge
-  vlan_tag       = each.value.vlan_tag
+  proxmox_disk_datastore = var.proxmox_disk_datastore
+  proxmox_iso_datastore  = var.proxmox_iso_datastore
+  network_bridge         = var.proxmox_network_bridge
+  vlan_tag               = each.value.vlan_tag
 
   ip_address = each.value.ip_address
   gateway    = var.network_gateway
@@ -100,39 +89,50 @@ module "talos_vm" {
   # Ensure control plane nodes are created first
   depends_on = [
     module.talos_cluster,
-    module.talos_image_cache
+    module.talos_image
   ]
 }
 
-# Apply Talos machine configuration to DHCP IPs
-# Talos will initially boot with DHCP, we apply config with static IP settings
+# Apply Talos machine configuration to nodes
 resource "talos_machine_configuration_apply" "nodes" {
   for_each = { for node in local.nodes : node.key => node }
 
   client_configuration        = module.talos_cluster.client_configuration
   machine_configuration_input = each.value.node_type == "controlplane" ? module.talos_cluster.machine_configs.controlplane : module.talos_cluster.machine_configs.worker
 
-  # Use the DHCP IP reported by guest agent
-  node     = module.talos_vm[each.key].ipv4_addresses
-  endpoint = module.talos_vm[each.key].ipv4_addresses
+  # Use static IP from cloud-init initialization
+  node     = split("/", each.value.ip_address)[0]
+  endpoint = split("/", each.value.ip_address)[0]
 
   config_patches = [
     yamlencode({
       machine = {
+        install = {
+          disk  = "/dev/sda"
+          image = module.talos_image[each.value.architecture].installer_image
+        }
         network = {
           hostname = module.talos_vm[each.key].name
           interfaces = [
-            {
-              interface = "eth0"
-              dhcp      = false
-              addresses = [each.value.ip_address]
-              routes = [
-                {
-                  network = "0.0.0.0/0"
-                  gateway = var.network_gateway
+            merge(
+              {
+                interface = "eth0"
+                dhcp      = false
+                addresses = [each.value.ip_address]
+                routes = [
+                  {
+                    network = "0.0.0.0/0"
+                    gateway = var.network_gateway
+                  }
+                ]
+              },
+              # Add VIP only for control plane nodes
+              each.value.node_type == "controlplane" ? {
+                vip = {
+                  ip = split(":", replace(var.cluster_endpoint, "https://", ""))[0]
                 }
-              ]
-            }
+              } : {}
+            )
           ]
           nameservers = var.nameservers
         }

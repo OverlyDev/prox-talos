@@ -1,10 +1,14 @@
+# Talos VM Module Variables
+# Configuration for creating Proxmox VMs with Talos Linux.
+
+# VM Identity
 variable "vm_id" {
   description = "The ID of the VM"
   type        = number
 }
 
 variable "name" {
-  description = "Name of the VM (optional, will be auto-generated if not provided)"
+  description = "Name of the VM (optional, will be auto-generated if not provided based on node type and IP)"
   type        = string
   default     = null
 }
@@ -14,11 +18,7 @@ variable "node_name" {
   type        = string
 }
 
-variable "proxmox_ssh_host" {
-  description = "SSH hostname or IP address of the Proxmox node"
-  type        = string
-}
-
+# Talos Configuration
 variable "node_type" {
   description = "Type of Talos node (controlplane or worker)"
   type        = string
@@ -46,30 +46,14 @@ variable "cluster_name" {
   default     = "talos"
 }
 
-variable "talos_client_config" {
-  description = "Talos client configuration (from talos_machine_secrets)"
-  type        = any
-  sensitive   = true
-}
-
-variable "talos_machine_config" {
-  description = "Talos machine configuration for this node"
-  type        = string
-  sensitive   = true
-}
-
-variable "talos_image_url" {
-  description = "URL to the Talos image"
+variable "talos_iso_id" {
+  description = "Proxmox resource ID for the Talos ISO (format: datastore:iso/filename.iso)"
   type        = string
 }
 
-variable "talos_image_cache" {
-  description = "Path to the cached Talos image on the Proxmox host"
-  type        = string
-}
-
+# Hardware Resources
 variable "cpu_cores" {
-  description = "Number of CPU cores"
+  description = "Number of CPU cores per socket"
   type        = number
   default     = 2
 }
@@ -81,71 +65,73 @@ variable "cpu_sockets" {
 }
 
 variable "memory_mb" {
-  description = "Memory in MB"
+  description = "Memory allocation in megabytes"
   type        = number
   default     = 4096
 }
 
 variable "disk_size_gb" {
-  description = "Disk size in GB"
+  description = "Disk size in gigabytes for Talos installation"
   type        = number
   default     = 50
 }
 
-variable "disk_datastore" {
-  description = "Datastore for the VM disks and EFI disk"
+# Storage Configuration
+variable "proxmox_disk_datastore" {
+  description = "Proxmox datastore for VM disks and EFI disk"
   type        = string
-  default     = "local-lvm"
 }
 
-variable "iso_datastore" {
-  description = "Datastore for ISO/image downloads (can be different from disk_datastore)"
-  type        = string
-  default     = "local"
-}
-
+# Network Configuration
 variable "network_bridge" {
-  description = "Network bridge for the VM"
+  description = "Network bridge for the VM (e.g., vmbr0)"
   type        = string
   default     = "vmbr0"
 }
 
 variable "vlan_tag" {
-  description = "VLAN tag for the network adapter (optional, no VLAN if not specified)"
+  description = "VLAN tag for network isolation (optional, no VLAN if not specified)"
   type        = number
   default     = null
 }
 
 variable "ip_address" {
-  description = "Static IP address in CIDR format (e.g., 10.0.0.10/24)"
+  description = "Static IP address to configure in CIDR notation (e.g., 10.0.20.11/24)"
   type        = string
 }
 
 variable "gateway" {
-  description = "Network gateway"
+  description = "Network gateway IP address"
   type        = string
 }
 
 variable "nameservers" {
-  description = "DNS nameservers"
+  description = "List of DNS nameserver IP addresses"
   type        = list(string)
   default     = ["1.1.1.1", "8.8.8.8"]
 }
 
+# VM Management
 variable "tags" {
-  description = "Tags to apply to the VM"
+  description = "Additional tags to apply to the VM (terraform, node_type, and architecture are added automatically)"
   type        = list(string)
   default     = ["talos"]
 }
 
+variable "mac_address_prefix" {
+  description = "MAC address prefix for predictable addressing (first 4 octets, e.g., '00:AA:BB:CC'). Last 2 octets generated from VM ID."
+  type        = string
+  default     = "00:AA:BB:CC"
+}
+
 variable "on_boot" {
-  description = "Start VM on Proxmox node boot"
+  description = "Automatically start VM when Proxmox node boots"
   type        = bool
   default     = true
 }
 
 variable "auto_start" {
-  description = "Whether to automatically start the VM after creation"
+  description = "Start the VM immediately after creation"
   type        = bool
   default     = true
 }

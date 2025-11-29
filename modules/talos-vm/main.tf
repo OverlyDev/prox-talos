@@ -1,3 +1,7 @@
+# Talos VM Module
+# Creates Proxmox VMs configured to boot and install Talos Linux from ISO.
+# Handles MAC address generation, auto-naming, and network configuration.
+
 # Generate VM name if not provided
 locals {
   # Extract last octet from IP for node number
@@ -12,9 +16,12 @@ locals {
 
   # Use provided name or generated name
   vm_name = var.name != null ? var.name : local.generated_name
+
+  # Generate MAC address with custom prefix and unique suffix based on VM ID
+  mac_address = format("${var.mac_address_prefix}:%02X:%02X", floor(var.vm_id / 256), var.vm_id % 256)
 }
 
-# Create the VM (without disks initially, we'll attach them after)
+# Create the VM with ISO mounted and empty disk
 resource "proxmox_virtual_environment_vm" "this" {
   name        = local.vm_name
   description = "Talos ${var.node_type} | Managed by Terraform"
@@ -22,10 +29,10 @@ resource "proxmox_virtual_environment_vm" "this" {
   vm_id       = var.vm_id
   tags        = concat(var.tags, ["terraform", var.node_type, var.architecture])
   on_boot     = var.on_boot
-  started     = false
+  started     = var.auto_start
 
   machine = "q35"
-  bios    = "ovmf"
+  bios    = "seabios"
 
   agent {
     enabled = true
@@ -39,21 +46,48 @@ resource "proxmox_virtual_environment_vm" "this" {
     type    = "host"
   }
 
+  operating_system {
+    type = "l26"
+  }
+
   memory {
     dedicated = var.memory_mb
   }
 
-  # EFI disk
-  efi_disk {
-    datastore_id = var.disk_datastore
+  # Primary disk for Talos installation
+  disk {
+    datastore_id = var.proxmox_disk_datastore
+    interface    = "scsi0"
+    size         = var.disk_size_gb
     file_format  = "raw"
-    type         = "4m"
   }
+
+  # Mount Talos ISO
+  cdrom {
+    file_id   = var.talos_iso_id
+    interface = "ide3"
+  }
+
+  # Boot from disk first, then CDROM
+  boot_order = ["scsi0", "ide3"]
 
   # Network
   network_device {
-    bridge  = var.network_bridge
-    vlan_id = var.vlan_tag
+    bridge      = var.network_bridge
+    vlan_id     = var.vlan_tag
+    mac_address = local.mac_address
+  }
+
+  # Network IP configuration for first boot
+  initialization {
+    datastore_id = var.proxmox_disk_datastore
+
+    ip_config {
+      ipv4 {
+        address = var.ip_address
+        gateway = var.gateway
+      }
+    }
   }
 
   # VGA display
@@ -65,111 +99,7 @@ resource "proxmox_virtual_environment_vm" "this" {
 
   lifecycle {
     ignore_changes = [
-      disk,
       started,
     ]
   }
 }
-
-# Import the Talos disk image from cache (after VM is created)
-resource "terraform_data" "import_talos_disk" {
-  depends_on = [proxmox_virtual_environment_vm.this]
-
-  triggers_replace = {
-    vm_id      = var.vm_id
-    cache_path = var.talos_image_cache
-    node_name  = var.node_name
-  }
-
-  provisioner "local-exec" {
-    command = <<-EOT
-      #!/bin/bash
-      set -e
-
-      echo "[Talos] Importing disk image from cache for VM ${var.vm_id}..."
-
-      # Import the disk directly from the cached image
-      ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-        root@${var.proxmox_ssh_host} \
-        "qm importdisk ${var.vm_id} ${var.talos_image_cache} ${var.disk_datastore} --format raw"
-
-      echo "[Talos] Disk import completed for VM ${var.vm_id}"
-    EOT
-  }
-}
-
-# Attach and configure the imported disk
-resource "terraform_data" "attach_and_start" {
-  depends_on = [
-    proxmox_virtual_environment_vm.this,
-    terraform_data.import_talos_disk
-  ]
-
-  triggers_replace = {
-    vm_id = var.vm_id
-  }
-
-  provisioner "local-exec" {
-    command = <<-EOT
-      #!/bin/bash
-      set -e
-
-      echo "[Talos] Configuring disk for VM ${var.vm_id}..."
-
-      # Attach the imported disk to scsi0
-      ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-        root@${var.proxmox_ssh_host} \
-        "qm set ${var.vm_id} --scsi0 ${var.disk_datastore}:vm-${var.vm_id}-disk-1"
-
-      # Resize the disk to the desired size
-      ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-        root@${var.proxmox_ssh_host} \
-        "qm resize ${var.vm_id} scsi0 ${var.disk_size_gb}G"
-
-      # Set boot order
-      ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-        root@${var.proxmox_ssh_host} \
-        "qm set ${var.vm_id} --boot order=scsi0"
-
-      # Start the VM if auto_start is enabled
-      if [ "${var.auto_start}" = "true" ]; then
-        echo "[Talos] Starting VM ${var.vm_id}..."
-        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-          root@${var.proxmox_ssh_host} \
-          "qm start ${var.vm_id} || true"
-
-        echo "[Talos] Waiting for VM ${var.vm_id} to boot and get DHCP IP..."
-        sleep 30
-
-        echo "[Talos] VM ${var.vm_id} configured and started"
-      else
-        echo "[Talos] VM ${var.vm_id} configured (not started)"
-      fi
-    EOT
-  }
-}
-
-# Wait for guest agent to report IP address
-data "external" "guest_ip" {
-  program = ["bash", "-c", <<-EOT
-    for i in {1..30}; do
-      IP=$(ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@${var.proxmox_ssh_host} \
-        "qm guest cmd ${var.vm_id} network-get-interfaces 2>/dev/null" | \
-        jq -r '.[] | select(.name=="eth0") | ."ip-addresses"[]? | select(."ip-address-type"=="ipv4") | ."ip-address"' | \
-        grep -v '^127\.' | head -1 || echo "")
-
-      if [ -n "$IP" ]; then
-        echo "{\"ip\":\"$IP\"}"
-        exit 0
-      fi
-      sleep 2
-    done
-
-    echo "{\"ip\":\"${split("/", var.ip_address)[0]}\"}"
-  EOT
-  ]
-
-  depends_on = [terraform_data.attach_and_start]
-}
-
-# Note: Talos machine configuration is applied in main.tf after VMs start

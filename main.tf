@@ -67,16 +67,13 @@ module "talos_vm" {
   architecture = each.value.architecture
   cluster_name = var.cluster_name
 
-  talos_client_config  = module.talos_cluster.client_configuration
-  talos_machine_config = each.value.node_type == "controlplane" ? module.talos_cluster.machine_configs.controlplane : module.talos_cluster.machine_configs.worker
-  talos_iso_id         = module.talos_image[each.value.architecture].iso_id
+  talos_iso_id = module.talos_image[each.value.architecture].iso_id
 
   cpu_cores    = each.value.cpu_cores
   memory_mb    = each.value.memory_mb
   disk_size_gb = each.value.disk_size_gb
 
   proxmox_disk_datastore = var.proxmox_disk_datastore
-  proxmox_iso_datastore  = var.proxmox_iso_datastore
   network_bridge         = var.proxmox_network_bridge
   vlan_tag               = each.value.vlan_tag
 

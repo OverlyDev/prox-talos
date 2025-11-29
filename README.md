@@ -175,8 +175,6 @@ To reinstall a node:
 terraform destroy
 ```
 
-Note: ISOs are cached and not deleted. Remove manually from Proxmox if desired.
-
 ## Module Documentation
 
 - [talos-image](./modules/talos-image/README.md) - Custom ISO generation

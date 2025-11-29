@@ -16,7 +16,6 @@ The Image Factory allows you to create customized Talos images with:
 2. **Get Schematic ID**: Receives a unique schematic ID for your customization
 3. **Build Image URLs**: Constructs URLs for both the boot ISO and installer image
 4. **Download ISO**: Uses Proxmox provider to download the ISO to your specified datastore
-5. **Cache Management**: ISOs are downloaded once and cached (never re-downloaded or deleted)
 
 ## Key Features
 
@@ -31,12 +30,6 @@ The module supports official Talos extensions:
 The module outputs an `installer_image` URL that points to the Image Factory installer with your schematic ID. This ensures that when Talos installs to disk, it includes all your custom extensions (not just the vanilla image).
 
 **Critical**: Always use the `installer_image` output in your Talos machine configuration's `install.image` field to ensure extensions persist after installation.
-
-### ISO Lifecycle Management
-- ISOs are created once and never deleted
-- Uses `lifecycle { ignore_changes = all }` to prevent re-downloads
-- `overwrite = false` means existing ISOs are reused
-- `overwrite_unmanaged = true` allows Terraform to adopt existing ISOs
 
 ## Usage Example
 
@@ -129,9 +122,6 @@ machine:
     disk: /dev/sda
     image: factory.talos.dev/installer/<schematic-id>:v1.11.5
 ```
-
-### ISO Caching
-ISOs are never deleted by Terraform, even on `terraform destroy`. This is intentional to prevent re-downloading large files. If you want to remove old ISOs, delete them manually from Proxmox.
 
 ### Datastore Requirements
 The ISO datastore must support ISO/img content type. Typically this is the `local` datastore, but any datastore configured for ISO storage will work.

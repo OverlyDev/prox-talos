@@ -26,28 +26,27 @@ data "http" "image_factory_schematic" {
 }
 
 locals {
-  schematic_id   = jsondecode(data.http.image_factory_schematic.response_body).id
-  image_url      = "https://factory.talos.dev/image/${local.schematic_id}/${var.talos_version}/${var.platform}-${var.architecture}.iso"
-  cache_filename = "talos-${var.talos_version}-${var.architecture}.iso"
+  schematic_id = jsondecode(data.http.image_factory_schematic.response_body).id
+  image_url    = "https://factory.talos.dev/image/${local.schematic_id}/${var.talos_version}/${var.platform}-${var.architecture}.iso"
+  iso_filename = "talos-${var.talos_version}-${var.architecture}.iso"
 }
 
-# Download and cache the Talos ISO on the Proxmox node
+# Download the Talos ISO to the Proxmox node
 resource "proxmox_virtual_environment_download_file" "talos_iso" {
   node_name    = var.node_name
   content_type = "iso"
   datastore_id = var.iso_datastore
 
   url       = local.image_url
-  file_name = local.cache_filename
+  file_name = local.iso_filename
 
-  # Set to true to re-download on every apply, false to keep cached ISO
+  # Don't re-download if file already exists
   overwrite = false
 
-  # Allow Terraform to manage ISOs that already exist (e.g., from previous runs)
+  # Allow Terraform to manage ISOs that already exist
   overwrite_unmanaged = true
 
   lifecycle {
-    # Create once, then ignore changes - never delete
     ignore_changes = all
   }
 }

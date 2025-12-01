@@ -56,7 +56,7 @@ module "talos_image" {
   iso_datastore = var.proxmox_iso_datastore
 }
 
-# Create all VMs (but don't start them yet)
+# Create all VMs
 module "talos_vm" {
   source   = "./modules/talos-vm"
   for_each = { for node in local.nodes : node.key => node }

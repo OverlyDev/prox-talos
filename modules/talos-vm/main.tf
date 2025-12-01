@@ -54,12 +54,19 @@ resource "proxmox_virtual_environment_vm" "this" {
     dedicated = var.memory_mb
   }
 
-  # Primary disk for Talos installation
+  # Primary disk for Talos installation (using VirtIO Block for best performance)
   disk {
     datastore_id = var.proxmox_disk_datastore
-    interface    = "scsi0"
+    interface    = "virtio0"
     size         = var.disk_size_gb
     file_format  = "raw"
+
+    # Storage-type specific optimizations
+    ssd      = var.disk_storage_type == "ssd" ? true : false
+    discard  = var.disk_storage_type == "ssd" ? "on" : "ignore"
+    iothread = var.disk_storage_type == "ssd" ? true : false
+    aio      = var.disk_storage_type == "ssd" ? "io_uring" : "threads"
+    cache    = var.disk_storage_type == "ssd" ? "none" : "writethrough"
   }
 
   # Mount Talos ISO
@@ -69,7 +76,7 @@ resource "proxmox_virtual_environment_vm" "this" {
   }
 
   # Boot from disk first, then CDROM
-  boot_order = ["scsi0", "ide3"]
+  boot_order = ["virtio0", "ide3"]
 
   # Network
   network_device {

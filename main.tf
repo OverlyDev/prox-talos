@@ -74,6 +74,7 @@ module "talos_vm" {
   disk_size_gb = each.value.disk_size_gb
 
   proxmox_disk_datastore = var.proxmox_disk_datastore
+  disk_storage_type      = var.proxmox_disk_storage_type
   network_bridge         = var.proxmox_network_bridge
   vlan_tag               = each.value.vlan_tag
 
@@ -105,7 +106,7 @@ resource "talos_machine_configuration_apply" "nodes" {
     yamlencode({
       machine = {
         install = {
-          disk  = "/dev/sda"
+          disk  = "/dev/vda"
           image = module.talos_image[each.value.architecture].installer_image
         }
         network = {

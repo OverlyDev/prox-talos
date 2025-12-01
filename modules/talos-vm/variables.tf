@@ -76,6 +76,17 @@ variable "disk_size_gb" {
   default     = 50
 }
 
+variable "disk_storage_type" {
+  description = "Storage type: 'ssd' enables SSD optimizations (discard, iothread), 'hdd' uses traditional settings"
+  type        = string
+  default     = "ssd"
+
+  validation {
+    condition     = contains(["ssd", "hdd"], var.disk_storage_type)
+    error_message = "Storage type must be either 'ssd' or 'hdd'."
+  }
+}
+
 # Storage Configuration
 variable "proxmox_disk_datastore" {
   description = "Proxmox datastore for VM disks and EFI disk"

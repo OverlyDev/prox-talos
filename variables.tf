@@ -56,6 +56,17 @@ variable "proxmox_disk_datastore" {
   default     = "local-lvm"
 }
 
+variable "proxmox_disk_storage_type" {
+  description = "Storage type for VM disks: 'ssd' enables optimizations (discard, iothread), 'hdd' uses traditional settings"
+  type        = string
+  default     = "ssd"
+
+  validation {
+    condition     = contains(["ssd", "hdd"], var.proxmox_disk_storage_type)
+    error_message = "Storage type must be either 'ssd' or 'hdd'."
+  }
+}
+
 variable "proxmox_iso_datastore" {
   description = "Proxmox datastore for ISO storage (typically 'local')"
   type        = string

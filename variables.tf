@@ -1,3 +1,7 @@
+# ==============================================================================
+# Proxmox Connection
+# ==============================================================================
+
 variable "proxmox_host" {
   description = "Proxmox host hostname or IP address"
   type        = string
@@ -36,17 +40,9 @@ locals {
   proxmox_endpoint = "${var.proxmox_tls ? "https" : "http"}://${var.proxmox_host}:${var.proxmox_port}"
 }
 
-variable "talos_image_extensions" {
-  description = "List of Talos system extensions to include in the image"
-  type        = list(string)
-  default     = ["siderolabs/qemu-guest-agent"]
-}
-
-variable "install_cilium" {
-  description = "Whether to install Cilium CNI via Terraform. Set to false if managing via Flux/GitOps."
-  type        = bool
-  default     = true
-}
+# ==============================================================================
+# Proxmox Infrastructure
+# ==============================================================================
 
 variable "proxmox_node_name" {
   description = "The name of the Proxmox node to deploy VMs on"
@@ -78,6 +74,10 @@ variable "proxmox_vlan_tag" {
   default     = null
 }
 
+# ==============================================================================
+# Network Configuration
+# ==============================================================================
+
 variable "network_gateway" {
   description = "The network gateway for VMs"
   type        = string
@@ -88,6 +88,15 @@ variable "nameservers" {
   type        = list(string)
   default     = ["1.1.1.1", "1.0.0.1"]
 }
+
+variable "starting_ip" {
+  description = "Starting IP address for nodes (will be incremented sequentially. format: x.x.x.x)"
+  type        = string
+}
+
+# ==============================================================================
+# Talos Cluster Configuration
+# ==============================================================================
 
 variable "cluster_name" {
   description = "Name of the Talos cluster"
@@ -105,6 +114,16 @@ variable "talos_version" {
   type        = string
   default     = "v1.11.5"
 }
+
+variable "talos_image_extensions" {
+  description = "List of Talos system extensions to include in the image"
+  type        = list(string)
+  default     = ["siderolabs/qemu-guest-agent"]
+}
+
+# ==============================================================================
+# Node Configuration
+# ==============================================================================
 
 variable "node_pools" {
   description = "Definition of node pools for the cluster"
@@ -147,14 +166,18 @@ variable "node_pools" {
   }
 }
 
-variable "starting_ip" {
-  description = "Starting IP address for nodes (will be incremented sequentially)"
-  type        = string
-  default     = "10.0.20.10"
-}
-
 variable "starting_vm_id" {
   description = "Starting VM ID for nodes (will be incremented sequentially)"
   type        = number
   default     = 1000
+}
+
+# ==============================================================================
+# Kubernetes/CNI Configuration
+# ==============================================================================
+
+variable "install_cilium" {
+  description = "Whether to install Cilium CNI via Terraform. Set to false if managing via Flux/GitOps."
+  type        = bool
+  default     = true
 }

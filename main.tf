@@ -208,8 +208,10 @@ resource "terraform_data" "wait_for_k8s_api" {
   ]
 }
 
-# Install Cilium CNI
+# Install Cilium CNI (optional - can be managed via Flux instead)
 resource "helm_release" "cilium" {
+  count = var.install_cilium ? 1 : 0
+
   name       = "cilium"
   repository = "https://helm.cilium.io/"
   chart      = "cilium"

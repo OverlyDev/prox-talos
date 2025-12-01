@@ -42,6 +42,12 @@ variable "talos_image_extensions" {
   default     = ["siderolabs/qemu-guest-agent"]
 }
 
+variable "install_cilium" {
+  description = "Whether to install Cilium CNI via Terraform. Set to false if managing via Flux/GitOps."
+  type        = bool
+  default     = true
+}
+
 variable "proxmox_node_name" {
   description = "The name of the Proxmox node to deploy VMs on"
   type        = string

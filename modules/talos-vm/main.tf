@@ -107,6 +107,9 @@ resource "proxmox_virtual_environment_vm" "this" {
   lifecycle {
     ignore_changes = [
       started,
+      disk,       # Prevent disk changes from forcing VM recreation
+      boot_order, # Prevent boot order changes from forcing VM recreation
+      cdrom,      # Prevent CDROM changes from forcing VM recreation
     ]
   }
 }

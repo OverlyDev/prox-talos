@@ -180,6 +180,7 @@ resource "local_file" "kubeconfig" {
 resource "terraform_data" "merge_kubeconfig" {
   triggers_replace = {
     kubeconfig_content = local_file.kubeconfig.content
+    cluster_name       = var.cluster_name
   }
 
   provisioner "local-exec" {
@@ -197,6 +198,44 @@ resource "terraform_data" "merge_kubeconfig" {
     EOT
   }
 
+  provisioner "local-exec" {
+    when    = destroy
+    command = <<-EOT
+      #!/bin/bash
+      # Remove this workspace's context from merged kubeconfig
+      if [ -f "${path.module}/kubeconfig" ]; then
+        # Get the context to delete
+        CONTEXT=$(KUBECONFIG="${path.module}/kubeconfig" kubectl config get-contexts -o name | grep "${self.triggers_replace.cluster_name}" | head -n1)
+        if [ -n "$CONTEXT" ]; then
+          # Check if this is the current context
+          CURRENT=$(KUBECONFIG="${path.module}/kubeconfig" kubectl config current-context 2>/dev/null)
+
+          # Delete the context, cluster, and user
+          kubectl --kubeconfig="${path.module}/kubeconfig" config delete-context "$CONTEXT" 2>/dev/null || true
+          kubectl --kubeconfig="${path.module}/kubeconfig" config delete-cluster "${self.triggers_replace.cluster_name}" 2>/dev/null || true
+          kubectl --kubeconfig="${path.module}/kubeconfig" config unset "users.$CONTEXT" 2>/dev/null || true
+
+          # If we deleted the current context, switch to another one
+          if [ "$CURRENT" = "$CONTEXT" ]; then
+            OTHER=$(KUBECONFIG="${path.module}/kubeconfig" kubectl config get-contexts -o name 2>/dev/null | head -n1)
+            if [ -n "$OTHER" ]; then
+              kubectl --kubeconfig="${path.module}/kubeconfig" config use-context "$OTHER" 2>/dev/null || true
+            fi
+          fi
+
+          echo "[Kubeconfig] Removed context from merged config"
+        fi
+
+        # If no contexts remain, delete the file
+        REMAINING=$(KUBECONFIG="${path.module}/kubeconfig" kubectl config get-contexts -o name 2>/dev/null | wc -l)
+        if [ "$REMAINING" -eq 0 ]; then
+          rm -f "${path.module}/kubeconfig"
+          echo "[Kubeconfig] Removed merged config (no contexts remain)"
+        fi
+      fi
+    EOT
+  }
+
   depends_on = [local_file.kubeconfig]
 }
 
@@ -204,15 +243,66 @@ resource "terraform_data" "merge_kubeconfig" {
 resource "terraform_data" "merge_talosconfig" {
   triggers_replace = {
     talosconfig_content = local_file.talosconfig.content
+    cluster_name        = var.cluster_name
   }
 
   provisioner "local-exec" {
     command = <<-EOT
       #!/bin/bash
       # Merge talosconfig using talosctl
+      # Remove existing context first to avoid duplicates on re-apply
+      if [ -f "${path.module}/talosconfig" ]; then
+        # Get current context
+        CURRENT=$(talosctl config contexts --talosconfig "${path.module}/talosconfig" 2>/dev/null | awk '$1=="*" {print $2}')
+
+        # If we're trying to remove the current context, switch to another first
+        if [ "$CURRENT" = "${var.cluster_name}" ]; then
+          # Get list of all contexts (handle both * and non-* rows)
+          CONTEXTS=$(talosctl config contexts --talosconfig "${path.module}/talosconfig" 2>/dev/null | awk 'NR>1 {if($1=="*") print $2; else print $1}')
+          OTHER=$(echo "$CONTEXTS" | grep -v "^${var.cluster_name}$" | head -n1)
+          if [ -n "$OTHER" ]; then
+            talosctl config context "$OTHER" --talosconfig "${path.module}/talosconfig" 2>/dev/null || true
+          fi
+        fi
+
+        # Try to remove the context if it exists
+        talosctl config remove "${var.cluster_name}" --talosconfig "${path.module}/talosconfig" -y 2>/dev/null || true
+      fi
       talosctl config merge "${local_file.talosconfig.filename}" --talosconfig "${path.module}/talosconfig"
       chmod 600 "${path.module}/talosconfig"
       echo "[Talosconfig] Merged ${terraform.workspace} context into talosconfig"
+    EOT
+  }
+
+  provisioner "local-exec" {
+    when    = destroy
+    command = <<-EOT
+      #!/bin/bash
+      # Remove this workspace's context from merged talosconfig
+      if [ -f "${path.module}/talosconfig" ]; then
+        # Get all contexts (handle both * and non-* rows)
+        CONTEXTS=$(talosctl config contexts --talosconfig "${path.module}/talosconfig" 2>/dev/null | awk 'NR>1 {if($1=="*") print $2; else print $1}')
+        CURRENT=$(talosctl config contexts --talosconfig "${path.module}/talosconfig" 2>/dev/null | awk '$1=="*" {print $2}')
+        CONTEXT_COUNT=$(echo "$CONTEXTS" | grep -v '^$' | wc -l | tr -d ' ')
+
+        # If this is the only context left, just delete the file
+        if [ "$CONTEXT_COUNT" -eq 1 ]; then
+          rm -f "${path.module}/talosconfig"
+          echo "[Talosconfig] Removed merged config (last context)"
+        else
+          # If this is the current context and there are others, switch first
+          if [ "$CURRENT" = "${self.triggers_replace.cluster_name}" ]; then
+            OTHER=$(echo "$CONTEXTS" | grep -v "^${self.triggers_replace.cluster_name}$" | head -n1)
+            if [ -n "$OTHER" ]; then
+              talosctl config context "$OTHER" --talosconfig "${path.module}/talosconfig" 2>/dev/null || true
+            fi
+          fi
+
+          # Remove the context
+          talosctl config remove "${self.triggers_replace.cluster_name}" --talosconfig "${path.module}/talosconfig" -y 2>/dev/null || true
+          echo "[Talosconfig] Removed context from merged config"
+        fi
+      fi
     EOT
   }
 

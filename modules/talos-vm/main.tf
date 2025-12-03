@@ -27,7 +27,7 @@ resource "proxmox_virtual_environment_vm" "this" {
   description = "Talos ${var.node_type} | Managed by Terraform"
   node_name   = var.node_name
   vm_id       = var.vm_id
-  tags        = concat(var.tags, ["terraform", var.node_type, var.architecture])
+  tags        = sort(concat(var.tags, ["terraform", var.node_type, var.architecture]))
   on_boot     = var.on_boot
   started     = var.auto_start
 

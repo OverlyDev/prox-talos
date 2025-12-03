@@ -162,18 +162,61 @@ resource "talos_cluster_kubeconfig" "this" {
   depends_on = [talos_machine_bootstrap.this]
 }
 
-# Write talosconfig to file
+# Write talosconfig to file (workspace-specific)
 resource "local_file" "talosconfig" {
   content         = module.talos_cluster.talosconfig
-  filename        = "${path.module}/talosconfig"
+  filename        = "${path.module}/talosconfig${terraform.workspace != "default" ? "-${terraform.workspace}" : ""}"
   file_permission = "0600"
 }
 
-# Write kubeconfig to file
+# Write kubeconfig to file (workspace-specific)
 resource "local_file" "kubeconfig" {
   content         = talos_cluster_kubeconfig.this.kubeconfig_raw
-  filename        = "${path.module}/kubeconfig"
+  filename        = "${path.module}/kubeconfig${terraform.workspace != "default" ? "-${terraform.workspace}" : ""}"
   file_permission = "0600"
+}
+
+# Merge kubeconfig into a single file for easy context switching
+resource "terraform_data" "merge_kubeconfig" {
+  triggers_replace = {
+    kubeconfig_content = local_file.kubeconfig.content
+  }
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      #!/bin/bash
+      # Create or update merged kubeconfig
+      if [ -f "${path.module}/kubeconfig" ]; then
+        KUBECONFIG="${path.module}/kubeconfig:${local_file.kubeconfig.filename}" kubectl config view --flatten > "${path.module}/kubeconfig.tmp"
+        mv "${path.module}/kubeconfig.tmp" "${path.module}/kubeconfig"
+      else
+        cp "${local_file.kubeconfig.filename}" "${path.module}/kubeconfig"
+      fi
+      chmod 600 "${path.module}/kubeconfig"
+      echo "[Kubeconfig] Merged ${terraform.workspace} context into kubeconfig"
+    EOT
+  }
+
+  depends_on = [local_file.kubeconfig]
+}
+
+# Merge talosconfig into a single file for easy context switching
+resource "terraform_data" "merge_talosconfig" {
+  triggers_replace = {
+    talosconfig_content = local_file.talosconfig.content
+  }
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      #!/bin/bash
+      # Merge talosconfig using talosctl
+      talosctl config merge "${local_file.talosconfig.filename}" --talosconfig "${path.module}/talosconfig"
+      chmod 600 "${path.module}/talosconfig"
+      echo "[Talosconfig] Merged ${terraform.workspace} context into talosconfig"
+    EOT
+  }
+
+  depends_on = [local_file.talosconfig]
 }
 
 # Wait for Kubernetes API to be ready

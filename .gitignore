@@ -13,9 +13,9 @@ devenv.local.nix
 *.tfstate
 *.tfstate.*
 
-# Ignore .auto.tfvars files
-*.auto.tfvars
+# Ignore .tfvars files
+*.tfvars
 
 # Ignore generated configs
-talosconfig
-kubeconfig
+talosconfig*
+kubeconfig*

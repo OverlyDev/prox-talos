@@ -93,6 +93,77 @@ kubectl get nodes
 talosctl health
 ```
 
+## Managing Multiple Clusters
+
+This project supports managing multiple clusters using Terraform workspaces. Each workspace maintains separate state and generates workspace-specific configuration files.
+
+### Setting Up Multiple Clusters
+
+1. **Create cluster configuration files** (e.g., `cluster-prod.tfvars`, `cluster-staging.tfvars`) with different settings for each cluster:
+   - Different IP ranges (`starting_ip`, `cluster_endpoint`)
+   - Different node counts and resources
+   - Different cluster names
+   - Different `starting_vm_id`
+
+2. **Create Terraform workspaces**:
+   ```bash
+   terraform workspace new prod
+   terraform workspace new staging
+   terraform workspace list  # verify workspaces
+   ```
+
+3. **Deploy and manage clusters** by selecting the workspace and corresponding var file:
+   ```bash
+   # Deploy production cluster
+   terraform workspace select prod
+   terraform apply -var-file="cluster-prod.tfvars"
+
+   # Deploy staging cluster
+   terraform workspace select staging
+   terraform apply -var-file="cluster-staging.tfvars"
+
+   # Destroy a cluster
+   terraform workspace select staging
+   terraform destroy -var-file="cluster-staging.tfvars"
+   ```
+
+### Configuration Files Generated
+
+- **Default workspace**: `kubeconfig`, `talosconfig`
+- **Named workspaces**: `kubeconfig-prod`, `talosconfig-prod`, etc.
+- **Merged configs**: `kubeconfig` and `talosconfig` (automatically merged from all workspaces)
+
+### Switching Between Clusters
+
+Use the merged configuration files to easily switch between clusters:
+
+```bash
+export KUBECONFIG=$(pwd)/kubeconfig
+export TALOSCONFIG=$(pwd)/talosconfig
+
+# Switch kubectl context
+kubectl config get-contexts
+kubectl config use-context admin@talos-prod
+
+# Switch talosctl context
+talosctl config contexts
+talosctl config context talos-prod
+```
+
+## Variable Files
+
+Since `*.tfvars` files are gitignored, feel free to create as many as necessary to better organize your environment.
+
+Example structure:
+
+- `<proxmox-hostname>.tfvars` - Variables specific to a given Proxmox host (IP, credentials, datastore, bridge, etc.)
+- `cluster-<name>.tfvars` - Variables specific to each cluster (cluster_name, cluster_endpoint, starting_ip, starting_vm_id, node_pools, etc.)
+- `common.auto.tfvars` - (Optional) Variables common to all clusters and Proxmox hosts (e.g. `network_gateway`, `vlan_tag`, etc. )
+
+**Important**: Any `*.auto.tfvars` files are automatically loaded by Terraform. When using workspaces for multiple clusters, avoid putting cluster-specific settings in `*.auto.tfvars` files; use explicitly named files like `cluster-prod.tfvars` instead and specify them with `-var-file`.
+
+This setup provides flexibility to mix and match Proxmox hosts and cluster configurations by pointing `-var-file` args to the desired combination. When managing multiple clusters, remember to always select the appropriate workspace first (see [Managing Multiple Clusters](#managing-multiple-clusters)).
+
 ## Configuration
 
 ### Node Pools
@@ -138,6 +209,7 @@ The VIP should be set to an IP address that comes before your `starting_ip_addre
 ## Outputs
 
 - `talosconfig` - Talos client configuration for cluster management
+- `kubeconfig` - Kubernetes client configuration for cluster access
 - `controlplane_nodes` - Control plane node details (IP, VM ID, names)
 - `worker_nodes` - Worker node details
 - `cluster_endpoint` - Kubernetes API endpoint

@@ -197,3 +197,9 @@ variable "cni_name" {
     error_message = "CNI name must be 'flannel', 'custom', or 'none'."
   }
 }
+
+variable "disable_kube_proxy" {
+  description = "Disable kube-proxy deployment. Only set to true when using a CNI that replaces kube-proxy (e.g., Cilium with kubeProxyReplacement=true). Required for Flannel: false."
+  type        = bool
+  default     = false
+}

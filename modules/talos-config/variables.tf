@@ -73,3 +73,9 @@ variable "cni_name" {
   type        = string
   default     = "flannel"
 }
+
+variable "disable_kube_proxy" {
+  description = "Disable kube-proxy deployment. Set to true when using a CNI that replaces kube-proxy (e.g., Cilium with kubeProxyReplacement)."
+  type        = bool
+  default     = false
+}

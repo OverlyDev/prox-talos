@@ -36,10 +36,11 @@ locals {
 module "talos_cluster" {
   source = "./modules/talos-config"
 
-  cluster_name     = var.cluster_name
-  cluster_endpoint = var.cluster_endpoint
-  talos_version    = var.talos_version
-  cni_name         = var.cni_name
+  cluster_name       = var.cluster_name
+  cluster_endpoint   = var.cluster_endpoint
+  talos_version      = var.talos_version
+  cni_name           = var.cni_name
+  disable_kube_proxy = var.disable_kube_proxy
 
   control_plane_endpoints = [for node in local.nodes : split("/", node.ip_address)[0] if node.node_type == "controlplane"]
   all_node_addresses      = [for node in local.nodes : split("/", node.ip_address)[0]]
@@ -194,6 +195,10 @@ resource "terraform_data" "merge_kubeconfig" {
       else
         cp "${local_file.kubeconfig.filename}" "${path.module}/kubeconfig"
       fi
+
+      # Rename context from admin@cluster-name to just cluster-name
+      kubectl --kubeconfig="${path.module}/kubeconfig" config rename-context "admin@${var.cluster_name}" "${var.cluster_name}" 2>/dev/null || true
+
       chmod 600 "${path.module}/kubeconfig"
       echo "[Kubeconfig] Merged ${terraform.workspace} context into kubeconfig"
     EOT

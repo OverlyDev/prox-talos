@@ -29,7 +29,7 @@ data "talos_machine_configuration" "controlplane" {
           }
         }
         proxy = {
-          disabled = true
+          disabled = var.disable_kube_proxy
         }
       }
     })

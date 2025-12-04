@@ -28,7 +28,8 @@ data "http" "image_factory_schematic" {
 locals {
   schematic_id = jsondecode(data.http.image_factory_schematic.response_body).id
   image_url    = "https://factory.talos.dev/image/${local.schematic_id}/${var.talos_version}/${var.platform}-${var.architecture}.iso"
-  iso_filename = "talos-${var.talos_version}-${var.architecture}.iso"
+  # Include schematic ID in filename so different schematics create different files
+  iso_filename = "talos-${var.talos_version}-${var.architecture}-${local.schematic_id}.iso"
 }
 
 # Download the Talos ISO to the Proxmox node
@@ -40,13 +41,9 @@ resource "proxmox_virtual_environment_download_file" "talos_iso" {
   url       = local.image_url
   file_name = local.iso_filename
 
-  # Don't re-download if file already exists
+  # Don't re-download if file already exists with same name
   overwrite = false
 
   # Allow Terraform to manage ISOs that already exist
   overwrite_unmanaged = true
-
-  lifecycle {
-    ignore_changes = all
-  }
 }

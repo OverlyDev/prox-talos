@@ -183,6 +183,20 @@ talos_extensions = [
 
 Available extensions: https://factory.talos.dev/
 
+### CNI (Container Network Interface)
+
+By default, the cluster is configured with **Flannel** as the CNI, which is automatically installed and managed by Talos during cluster bootstrap. Flannel provides a simple, reliable networking solution to get your cluster operational immediately.
+
+You can customize the CNI configuration by setting the `cni_name` variable in your `terraform.tfvars`:
+
+```hcl
+cni_name = "flannel"  # Default: Talos-managed Flannel
+# cni_name = "none"   # No CNI - manage manually or via Flux/GitOps
+# cni_name = "custom" # Provide custom CNI manifests
+```
+
+If you prefer to use a different CNI (Cilium, Calico, etc.), set `cni_name = "none"` and deploy your preferred CNI after cluster creation via kubectl, Helm, or Flux. The cluster will be ready to accept any CNI that suits your requirements.
+
 ### High Availability
 
 The cluster uses a Virtual IP (VIP) for control plane high availability. The VIP is specified in `cluster_endpoint` (e.g., `https://10.0.20.10:6443`) and is automatically configured on all control plane nodes using Talos native VIP support.

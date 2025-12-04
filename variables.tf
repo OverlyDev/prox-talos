@@ -187,8 +187,13 @@ variable "starting_vm_id" {
 # Kubernetes/CNI Configuration
 # ==============================================================================
 
-variable "install_cilium" {
-  description = "Whether to install Cilium CNI via Terraform. Set to false if managing via Flux/GitOps."
-  type        = bool
-  default     = true
+variable "cni_name" {
+  description = "CNI to use: 'flannel' (Talos-managed), 'custom', 'none'. When set to 'flannel', Talos installs and manages Flannel automatically."
+  type        = string
+  default     = "flannel"
+
+  validation {
+    condition     = contains(["flannel", "custom", "none"], var.cni_name)
+    error_message = "CNI name must be 'flannel', 'custom', or 'none'."
+  }
 }

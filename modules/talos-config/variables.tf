@@ -67,3 +67,9 @@ variable "cluster_service_cidr" {
   type        = string
   default     = "10.96.0.0/12"
 }
+
+variable "cni_name" {
+  description = "CNI to use: 'flannel' (Talos-managed), 'custom', or 'none'"
+  type        = string
+  default     = "flannel"
+}

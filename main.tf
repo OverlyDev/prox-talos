@@ -39,6 +39,7 @@ module "talos_cluster" {
   cluster_name     = var.cluster_name
   cluster_endpoint = var.cluster_endpoint
   talos_version    = var.talos_version
+  cni_name         = var.cni_name
 
   control_plane_endpoints = [for node in local.nodes : split("/", node.ip_address)[0] if node.node_type == "controlplane"]
   all_node_addresses      = [for node in local.nodes : split("/", node.ip_address)[0]]
@@ -339,60 +340,5 @@ resource "terraform_data" "wait_for_k8s_api" {
   depends_on = [
     talos_machine_bootstrap.this,
     local_file.kubeconfig
-  ]
-}
-
-# Install Cilium CNI (optional - can be managed via Flux instead)
-resource "helm_release" "cilium" {
-  count = var.install_cilium ? 1 : 0
-
-  name       = "cilium"
-  repository = "https://helm.cilium.io/"
-  chart      = "cilium"
-  version    = "1.18.3"
-  namespace  = "kube-system"
-
-  set {
-    name  = "ipam.mode"
-    value = "kubernetes"
-  }
-
-  set {
-    name  = "kubeProxyReplacement"
-    value = "true"
-  }
-
-  set {
-    name  = "securityContext.capabilities.ciliumAgent"
-    value = "{CHOWN,KILL,NET_ADMIN,NET_RAW,IPC_LOCK,SYS_ADMIN,SYS_RESOURCE,DAC_OVERRIDE,FOWNER,SETGID,SETUID}"
-  }
-
-  set {
-    name  = "securityContext.capabilities.cleanCiliumState"
-    value = "{NET_ADMIN,SYS_ADMIN,SYS_RESOURCE}"
-  }
-
-  set {
-    name  = "cgroup.autoMount.enabled"
-    value = "false"
-  }
-
-  set {
-    name  = "cgroup.hostRoot"
-    value = "/sys/fs/cgroup"
-  }
-
-  set {
-    name  = "k8sServiceHost"
-    value = replace(replace(var.cluster_endpoint, "https://", ""), ":6443", "")
-  }
-
-  set {
-    name  = "k8sServicePort"
-    value = "6443"
-  }
-
-  depends_on = [
-    terraform_data.wait_for_k8s_api
   ]
 }

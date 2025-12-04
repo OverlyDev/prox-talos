@@ -25,7 +25,7 @@ data "talos_machine_configuration" "controlplane" {
       cluster = {
         network = {
           cni = {
-            name = "none"
+            name = var.cni_name
           }
         }
         proxy = {

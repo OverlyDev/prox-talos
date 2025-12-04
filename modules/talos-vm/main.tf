@@ -31,6 +31,8 @@ resource "proxmox_virtual_environment_vm" "this" {
   on_boot     = var.on_boot
   started     = var.auto_start
 
+  stop_on_destroy = false # Skip graceful shutdown on destroy for faster deletion
+
   machine = "q35"
   bios    = "seabios"
 

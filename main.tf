@@ -196,9 +196,6 @@ resource "terraform_data" "merge_kubeconfig" {
         cp "${local_file.kubeconfig.filename}" "${path.module}/kubeconfig"
       fi
 
-      # Rename context from admin@cluster-name to just cluster-name
-      kubectl --kubeconfig="${path.module}/kubeconfig" config rename-context "admin@${var.cluster_name}" "${var.cluster_name}" 2>/dev/null || true
-
       chmod 600 "${path.module}/kubeconfig"
       echo "[Kubeconfig] Merged ${terraform.workspace} context into kubeconfig"
     EOT

@@ -101,4 +101,23 @@ in
     echo "  kubectl context: $KUBE_CONTEXT"
     echo "  talos context:   $TALOS_CONTEXT"
   '';
+
+  scripts.disable-cni.exec = ''
+    set -e
+
+    # Get all node IPs from talosctl
+    NODES=$(talosctl get members --nodes $(talosctl config info --output json | jq -r '.endpoints[0]') -o json | jq -r '.spec.addresses[]' | sort -u | tr '\n' ',' | sed 's/,$//')
+
+    if [ -z "$NODES" ]; then
+        echo "Error: No nodes found. Is the correct talos context selected?"
+        exit 1
+    fi
+
+    echo "Disabling CNI and kube-proxy on all nodes..."
+
+    # Apply patch to all nodes at once
+    talosctl patch machineconfig --nodes "$NODES" --patch '[{"op": "add", "path": "/cluster/network/cni", "value": {"name": "none"}}, {"op": "add", "path": "/cluster/proxy", "value": {"disabled": true}}]'
+
+    echo "✓ Patched all nodes successfully"
+  '';
 }

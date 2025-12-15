@@ -101,4 +101,26 @@ in
     echo "  kubectl context: $KUBE_CONTEXT"
     echo "  talos context:   $TALOS_CONTEXT"
   '';
+
+  scripts.bounce.exec = ''
+    set -e
+
+    # Check if context argument is provided
+    if [ -z "$1" ]; then
+      echo "Usage: bounce <context name (fuzzy)>"
+      exit 1
+    fi
+
+    CONTEXT="$1"
+
+    echo "THIS WILL DELETE AND RECREATE THE FOLLOWING CLUSTER: $CONTEXT"
+    read -p "Press Enter to continue or Ctrl+C to abort..."
+
+    terraform workspace select "$CONTEXT"
+
+    terraform destroy --var-file="cluster-''${CONTEXT}.tfvars" --auto-approve
+    terraform apply --var-file="cluster-''${CONTEXT}.tfvars" --auto-approve
+
+    use-context "$CONTEXT"
+  '';
 }

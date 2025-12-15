@@ -12,6 +12,10 @@ terraform {
       source  = "hashicorp/http"
       version = "~> 3.4"
     }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "~> 2.35"
+    }
   }
 }
 

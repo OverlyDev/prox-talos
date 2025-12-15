@@ -187,19 +187,14 @@ variable "starting_vm_id" {
 # Kubernetes/CNI Configuration
 # ==============================================================================
 
-variable "cni_name" {
-  description = "CNI to use: 'flannel' (Talos-managed), 'custom', 'none'. When set to 'flannel', Talos installs and manages Flannel automatically."
+variable "cilium_version" {
+  description = "Cilium chart version to deploy"
   type        = string
-  default     = "flannel"
-
-  validation {
-    condition     = contains(["flannel", "custom", "none"], var.cni_name)
-    error_message = "CNI name must be 'flannel', 'custom', or 'none'."
-  }
+  default     = "1.18.4"
 }
 
-variable "disable_kube_proxy" {
-  description = "Disable kube-proxy deployment. Only set to true when using a CNI that replaces kube-proxy (e.g., Cilium with kubeProxyReplacement=true). Required for Flannel: false."
-  type        = bool
-  default     = false
+variable "gateway_api_version" {
+  description = "Gateway API CRD version to install"
+  type        = string
+  default     = "v1.2.1"
 }

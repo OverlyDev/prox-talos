@@ -36,11 +36,9 @@ locals {
 module "talos_cluster" {
   source = "./modules/talos-config"
 
-  cluster_name       = var.cluster_name
-  cluster_endpoint   = var.cluster_endpoint
-  talos_version      = var.talos_version
-  cni_name           = var.cni_name
-  disable_kube_proxy = var.disable_kube_proxy
+  cluster_name     = var.cluster_name
+  cluster_endpoint = var.cluster_endpoint
+  talos_version    = var.talos_version
 
   control_plane_endpoints = [for node in local.nodes : split("/", node.ip_address)[0] if node.node_type == "controlplane"]
   all_node_addresses      = [for node in local.nodes : split("/", node.ip_address)[0]]
@@ -342,5 +340,17 @@ resource "terraform_data" "wait_for_k8s_api" {
   depends_on = [
     talos_machine_bootstrap.this,
     local_file.kubeconfig
+  ]
+}
+
+# Deploy Cilium CNI with Gateway API support
+module "cilium" {
+  source = "./modules/cilium"
+
+  cilium_version      = var.cilium_version
+  gateway_api_version = var.gateway_api_version
+
+  depends_on = [
+    terraform_data.wait_for_k8s_api
   ]
 }

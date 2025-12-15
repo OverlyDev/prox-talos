@@ -185,17 +185,16 @@ Available extensions: https://factory.talos.dev/
 
 ### CNI (Container Network Interface)
 
-By default, the cluster is configured with **Flannel** as the CNI, which is automatically installed and managed by Talos during cluster bootstrap. Flannel provides a simple, reliable networking solution to get your cluster operational immediately.
+By default, the cluster is configured with **Cilium** as the CNI, which is automatically deployed via Helm during cluster bootstrap. Cilium provides advanced networking features including kube-proxy replacement, enhanced observability, and network policies.
 
-You can customize the CNI configuration by setting the `cni_name` variable in your `terraform.tfvars`:
+The cluster is configured with:
+- `cluster.network.cni.name = "none"` - Disables Talos built-in CNI
+- `cluster.proxy.disabled = true` - Disables kube-proxy (Cilium replaces it)
+- Cilium deployed via Helm with `kubeProxyReplacement = true`
 
-```hcl
-cni_name = "flannel"  # Default: Talos-managed Flannel
-# cni_name = "none"   # No CNI - manage manually or via Flux/GitOps
-# cni_name = "custom" # Provide custom CNI manifests
-```
+You can customize the Cilium version by setting the `cilium_version` variable in your `terraform.tfvars`.
 
-If you prefer to use a different CNI (Cilium, Calico, etc.), set `cni_name = "none"` and deploy your preferred CNI after cluster creation via kubectl, Helm, or Flux. The cluster will be ready to accept any CNI that suits your requirements.
+If you prefer to manage CNI deployment separately, you can comment out the `helm_release "cilium"` resource in `main.tf` and deploy Cilium through your preferred method. The cluster is configured to accept any CNI that provides kube-proxy replacement.
 
 ### High Availability
 

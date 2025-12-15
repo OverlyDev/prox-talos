@@ -25,11 +25,23 @@ data "talos_machine_configuration" "controlplane" {
       cluster = {
         network = {
           cni = {
-            name = var.cni_name
+            name = "none"
           }
         }
         proxy = {
-          disabled = var.disable_kube_proxy
+          disabled = true
+        }
+      }
+      machine = {
+        features = {
+          kubePrism = {
+            enabled = true
+            port    = 7445
+          }
+          hostDNS = {
+            enabled                 = true
+            forwardKubeDNSToHost = false
+          }
         }
       }
     })

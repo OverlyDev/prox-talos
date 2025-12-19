@@ -4,20 +4,21 @@
 # Install Gateway API CRDs (required for Cilium Gateway API support)
 resource "terraform_data" "gateway_api_crds" {
   triggers_replace = {
-    gateway_api_version = var.gateway_api_version
+    # Using timestamp ensures this runs on every apply to maintain desired state
+    timestamp = timestamp()
   }
 
   provisioner "local-exec" {
     command = <<-EOT
       #!/bin/bash
-      echo "[Gateway API] Installing CRDs version ${var.gateway_api_version}..."
+      echo "[Gateway API] Installing ${var.gateway_api_channel} CRDs version ${var.gateway_api_version}..."
 
-      kubectl apply -f https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/${var.gateway_api_version}/config/crd/standard/gateway.networking.k8s.io_gatewayclasses.yaml
-      kubectl apply -f https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/${var.gateway_api_version}/config/crd/standard/gateway.networking.k8s.io_gateways.yaml
-      kubectl apply -f https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/${var.gateway_api_version}/config/crd/standard/gateway.networking.k8s.io_httproutes.yaml
-      kubectl apply -f https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/${var.gateway_api_version}/config/crd/standard/gateway.networking.k8s.io_referencegrants.yaml
-      kubectl apply -f https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/${var.gateway_api_version}/config/crd/experimental/gateway.networking.k8s.io_grpcroutes.yaml
-      kubectl apply -f https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/${var.gateway_api_version}/config/crd/experimental/gateway.networking.k8s.io_tlsroutes.yaml
+      # Delete existing Gateway API CRDs to ensure clean state when switching channels
+      kubectl delete -f https://github.com/kubernetes-sigs/gateway-api/releases/download/${var.gateway_api_version}/standard-install.yaml --ignore-not-found=true
+      kubectl delete -f https://github.com/kubernetes-sigs/gateway-api/releases/download/${var.gateway_api_version}/experimental-install.yaml --ignore-not-found=true
+
+      # Install selected channel
+      kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/${var.gateway_api_version}/${var.gateway_api_channel}-install.yaml
 
       echo "[Gateway API] CRDs installed successfully"
     EOT

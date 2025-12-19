@@ -10,6 +10,15 @@ variable "gateway_api_version" {
   type        = string
 }
 
+variable "gateway_api_channel" {
+  description = "Gateway API release channel: 'standard' (stable) or 'experimental' (includes GRPCRoute, TCPRoute, TLSRoute, UDPRoute)"
+  type        = string
+  validation {
+    condition     = contains(["standard", "experimental"], var.gateway_api_channel)
+    error_message = "gateway_api_channel must be either 'standard' or 'experimental'"
+  }
+}
+
 variable "depends_on_resources" {
   description = "List of resources this module depends on (for dependency management)"
   type        = list(any)

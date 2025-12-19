@@ -349,6 +349,7 @@ module "cilium" {
 
   cilium_version      = var.cilium_version
   gateway_api_version = var.gateway_api_version
+  gateway_api_channel = var.gateway_api_channel
 
   depends_on = [
     terraform_data.wait_for_k8s_api

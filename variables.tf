@@ -198,3 +198,13 @@ variable "gateway_api_version" {
   type        = string
   default     = "v1.2.1"
 }
+
+variable "gateway_api_channel" {
+  description = "Gateway API release channel: 'standard' (stable) or 'experimental' (includes GRPCRoute, TCPRoute, TLSRoute, UDPRoute)"
+  type        = string
+  default     = "standard"
+  validation {
+    condition     = contains(["standard", "experimental"], var.gateway_api_channel)
+    error_message = "gateway_api_channel must be either 'standard' or 'experimental'"
+  }
+}
